@@ -1,5 +1,5 @@
 import { fetchPosts, createPost, updatePost, deletePost, uploadAttachment } from "./data.js";
-import { DOW, pad, toISO, today, parseISO, daysInMonth, escapeHtml, showToast, downloadCSV } from "./util.js";
+import { DOW, pad, toISO, addDays, today, parseISO, daysInMonth, escapeHtml, showToast, downloadCSV } from "./util.js";
 
 const MONTH_NAMES = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
 
@@ -26,14 +26,16 @@ export function init(){
 
   els.exportBtn.addEventListener("click", exportCSV);
 
-  document.querySelectorAll("[data-month-nav]").forEach((btn) => {
-    btn.addEventListener("click", () => shiftMonth(Number(btn.dataset.monthNav)));
+  document.querySelectorAll("[data-day-nav]").forEach((btn) => {
+    btn.addEventListener("click", () => shiftDay(Number(btn.dataset.dayNav)));
   });
   els.monthLabelBtn.addEventListener("click", () => {
     els.monthPicker.hidden = !els.monthPicker.hidden;
   });
   document.addEventListener("click", (e) => {
-    if (!els.monthPicker.hidden && !els.monthPicker.contains(e.target) && e.target !== els.monthLabelBtn){
+    if (els.monthPicker.hidden) return;
+    const path = e.composedPath();
+    if (!path.includes(els.monthPicker) && !path.includes(els.monthLabelBtn)){
       els.monthPicker.hidden = true;
     }
   });
@@ -54,14 +56,11 @@ export function init(){
   els.form.addEventListener("submit", onSubmit);
 }
 
-function shiftMonth(delta){
-  let m = viewMonth + delta;
-  let y = viewYear;
-  while (m < 1){ m += 12; y -= 1; }
-  while (m > 12){ m -= 12; y += 1; }
-  viewYear = y;
-  viewMonth = m;
-  els.monthPicker.hidden = true;
+function shiftDay(delta){
+  const d = addDays(parseISO(selectedDate), delta);
+  selectedDate = toISO(d);
+  viewYear = d.getFullYear();
+  viewMonth = d.getMonth() + 1;
   renderPanel();
 }
 
@@ -154,9 +153,25 @@ function countsByDate(){
 
 function renderMonthLabel(){
   els.monthLabelBtn.textContent = viewYear + "년 " + MONTH_NAMES[viewMonth - 1];
-  els.monthPicker.innerHTML = MONTH_NAMES.map((name, i) =>
-    '<button type="button" data-pick-month="' + (i + 1) + '" class="' + (i + 1 === viewMonth ? "active" : "") + '">' + name + "</button>"
-  ).join("");
+
+  els.monthPicker.innerHTML =
+    '<div class="month-picker-year">' +
+      '<button type="button" data-year-nav="-1">◀</button>' +
+      "<span>" + viewYear + "년</span>" +
+      '<button type="button" data-year-nav="1">▶</button>' +
+    "</div>" +
+    '<div class="month-picker-grid">' +
+      MONTH_NAMES.map((name, i) =>
+        '<button type="button" data-pick-month="' + (i + 1) + '" class="' + (i + 1 === viewMonth ? "active" : "") + '">' + name + "</button>"
+      ).join("") +
+    "</div>";
+
+  els.monthPicker.querySelectorAll("[data-year-nav]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      viewYear += Number(btn.dataset.yearNav);
+      renderPanel();
+    });
+  });
   els.monthPicker.querySelectorAll("[data-pick-month]").forEach((btn) => {
     btn.addEventListener("click", () => {
       viewMonth = Number(btn.dataset.pickMonth);

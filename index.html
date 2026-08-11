@@ -151,14 +151,16 @@
       <div class="card">
         <h2 class="section-title">날짜 선택</h2>
         <div class="month-nav">
-          <button type="button" class="btn ghost month-nav-arrow" data-month-nav="-1">◀</button>
           <button type="button" class="month-label-btn" id="monthLabelBtn"></button>
-          <button type="button" class="btn ghost month-nav-arrow" data-month-nav="1">▶</button>
           <div class="month-picker" id="monthPicker" hidden></div>
         </div>
         <div class="date-strip" id="dateStrip"></div>
         <div class="report-header">
-          <h3 id="reportDateTitle"></h3>
+          <div class="report-date-nav">
+            <button type="button" class="btn ghost" data-day-nav="-1">◀</button>
+            <h3 id="reportDateTitle"></h3>
+            <button type="button" class="btn ghost" data-day-nav="1">▶</button>
+          </div>
           <div class="report-header-actions">
             <button type="button" class="btn ghost" id="exportPostsBtn">전체 CSV로 내보내기</button>
             <button class="btn secondary" id="newPostBtn">새 글 작성</button>
