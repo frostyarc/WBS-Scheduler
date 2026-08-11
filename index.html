@@ -150,6 +150,12 @@
     <section class="panel" id="panel-report">
       <div class="card">
         <h2 class="section-title">날짜 선택</h2>
+        <div class="month-nav">
+          <button type="button" class="btn ghost month-nav-arrow" data-month-nav="-1">◀</button>
+          <button type="button" class="month-label-btn" id="monthLabelBtn"></button>
+          <button type="button" class="btn ghost month-nav-arrow" data-month-nav="1">▶</button>
+          <div class="month-picker" id="monthPicker" hidden></div>
+        </div>
         <div class="date-strip" id="dateStrip"></div>
         <div class="report-header">
           <h3 id="reportDateTitle"></h3>

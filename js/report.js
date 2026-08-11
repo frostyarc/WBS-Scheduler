@@ -1,13 +1,19 @@
 import { fetchPosts, createPost, updatePost, deletePost, uploadAttachment } from "./data.js";
-import { DOW, pad, toISO, addDays, today, parseISO, escapeHtml, showToast, downloadCSV } from "./util.js";
+import { DOW, pad, toISO, today, parseISO, daysInMonth, escapeHtml, showToast, downloadCSV } from "./util.js";
+
+const MONTH_NAMES = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
 
 let posts = [];
 let selectedDate = toISO(today());
+let viewYear = today().getFullYear();
+let viewMonth = today().getMonth() + 1; // 1-indexed
 let editingPostId = null;
 
 const els = {};
 
 export function init(){
+  els.monthLabelBtn = document.getElementById("monthLabelBtn");
+  els.monthPicker = document.getElementById("monthPicker");
   els.dateStrip = document.getElementById("dateStrip");
   els.dateTitle = document.getElementById("reportDateTitle");
   els.newPostBtn = document.getElementById("newPostBtn");
@@ -19,6 +25,18 @@ export function init(){
   els.exportBtn = document.getElementById("exportPostsBtn");
 
   els.exportBtn.addEventListener("click", exportCSV);
+
+  document.querySelectorAll("[data-month-nav]").forEach((btn) => {
+    btn.addEventListener("click", () => shiftMonth(Number(btn.dataset.monthNav)));
+  });
+  els.monthLabelBtn.addEventListener("click", () => {
+    els.monthPicker.hidden = !els.monthPicker.hidden;
+  });
+  document.addEventListener("click", (e) => {
+    if (!els.monthPicker.hidden && !els.monthPicker.contains(e.target) && e.target !== els.monthLabelBtn){
+      els.monthPicker.hidden = true;
+    }
+  });
 
   els.newPostBtn.addEventListener("click", () => {
     const hidden = els.form.style.display === "none" || !els.form.style.display;
@@ -34,6 +52,17 @@ export function init(){
   });
   els.cancelBtn.addEventListener("click", resetForm);
   els.form.addEventListener("submit", onSubmit);
+}
+
+function shiftMonth(delta){
+  let m = viewMonth + delta;
+  let y = viewYear;
+  while (m < 1){ m += 12; y -= 1; }
+  while (m > 12){ m -= 12; y += 1; }
+  viewYear = y;
+  viewMonth = m;
+  els.monthPicker.hidden = true;
+  renderPanel();
 }
 
 function resetForm(){
@@ -117,16 +146,45 @@ function exportCSV(){
   showToast("CSV 파일을 내려받았습니다");
 }
 
+function countsByDate(){
+  const counts = {};
+  posts.forEach((p) => { counts[p.post_date] = (counts[p.post_date] || 0) + 1; });
+  return counts;
+}
+
+function renderMonthLabel(){
+  els.monthLabelBtn.textContent = viewYear + "년 " + MONTH_NAMES[viewMonth - 1];
+  els.monthPicker.innerHTML = MONTH_NAMES.map((name, i) =>
+    '<button type="button" data-pick-month="' + (i + 1) + '" class="' + (i + 1 === viewMonth ? "active" : "") + '">' + name + "</button>"
+  ).join("");
+  els.monthPicker.querySelectorAll("[data-pick-month]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      viewMonth = Number(btn.dataset.pickMonth);
+      els.monthPicker.hidden = true;
+      renderPanel();
+    });
+  });
+}
+
 function renderDateStrip(){
   const t0 = today();
+  const total = daysInMonth(viewYear, viewMonth);
+  const counts = countsByDate();
   const html = [];
-  for (let i = -6; i <= 7; i++){
-    const d = addDays(t0, i);
+  for (let day = 1; day <= total; day++){
+    const d = new Date(viewYear, viewMonth - 1, day);
     const iso = toISO(d);
     let cls = "date-chip";
     if (iso === toISO(t0)) cls += " today";
     if (iso === selectedDate) cls += " selected";
-    html.push('<button type="button" class="' + cls + '" data-date="' + iso + '"><div class="dow">' + DOW[d.getDay()] + '</div><div class="dnum">' + d.getDate() + "</div></button>");
+    const count = counts[iso] || 0;
+    html.push(
+      '<button type="button" class="' + cls + '" data-date="' + iso + '">' +
+        '<div class="dow">' + DOW[d.getDay()] + "</div>" +
+        '<div class="dnum">' + day + "</div>" +
+        (count > 0 ? '<span class="date-chip-count">' + count + "</span>" : "") +
+      "</button>"
+    );
   }
   els.dateStrip.innerHTML = html.join("");
   els.dateStrip.querySelectorAll(".date-chip").forEach((chip) => {
@@ -138,6 +196,7 @@ function renderDateStrip(){
 }
 
 function renderPanel(){
+  renderMonthLabel();
   renderDateStrip();
   const d = parseISO(selectedDate);
   els.dateTitle.textContent = d.getFullYear() + "년 " + (d.getMonth() + 1) + "월 " + d.getDate() + "일 " + DOW[d.getDay()] + "요일";

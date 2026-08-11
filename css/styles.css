@@ -267,9 +267,29 @@ body{
 .part-bar-frac{font-family:var(--font-mono);font-size:12.5px;color:var(--text-muted);text-align:right;font-variant-numeric:tabular-nums;}
 
 /* ---------- report ---------- */
+.month-nav{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px;position:relative;}
+.month-nav-arrow{padding:6px 12px;}
+.month-label-btn{
+  font-family:var(--font-sans);font-size:15px;font-weight:700;color:var(--text-primary);
+  background:transparent;border:1px solid var(--border);border-radius:7px;padding:7px 16px;cursor:pointer;
+}
+.month-label-btn:hover{border-color:var(--text-muted);}
+.month-label-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.month-picker{
+  position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;
+  background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:6px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:10;
+}
+.month-picker button{
+  font-family:var(--font-sans);font-size:12.5px;font-weight:600;color:var(--text-primary);
+  background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 0;cursor:pointer;
+}
+.month-picker button:hover{border-color:var(--accent);}
+.month-picker button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
 .date-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;}
 .date-chip{
-  flex:none;width:56px;padding:9px 0;border-radius:9px;text-align:center;cursor:pointer;
+  position:relative;flex:none;width:56px;padding:9px 0;border-radius:9px;text-align:center;cursor:pointer;
   border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);
 }
 .date-chip .dow{font-size:11.5px;color:var(--text-muted);margin-bottom:4px;letter-spacing:0.02em;}
@@ -278,6 +298,12 @@ body{
 .date-chip.selected{background:var(--accent);border-color:var(--accent);color:#fff;}
 .date-chip.selected .dow{color:rgba(255,255,255,0.75);}
 .date-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.date-chip-count{
+  position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;padding:0 3px;
+  border-radius:999px;background:var(--accent);color:#fff;border:1.5px solid var(--surface);
+  font-family:var(--font-sans);font-size:10px;font-weight:700;line-height:17px;text-align:center;
+}
+.date-chip.selected .date-chip-count{background:#fff;color:var(--accent);border-color:var(--accent);}
 
 .report-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:18px 0 12px;}
 .report-header h3{margin:0;font-size:19px;font-weight:700;letter-spacing:-0.005em;}

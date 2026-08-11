@@ -22,6 +22,7 @@ export function addDays(base, n){ const d = new Date(base); d.setDate(d.getDate(
 export function today(){ const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
 export function parseISO(s){ const p = s.split("-").map(Number); return new Date(p[0], p[1] - 1, p[2]); }
 export function daysBetween(a, b){ return Math.round((b - a) / 86400000); }
+export function daysInMonth(year, month1based){ return new Date(year, month1based, 0).getDate(); }
 
 export function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
