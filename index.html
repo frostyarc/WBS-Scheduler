@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WPS 진행관리</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<div class="app">
+  <div class="setup-banner" id="setupBanner" style="display:none;"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <div class="brand-title">WPS 진행관리</div>
+        <div class="brand-sub">작업진행시스템</div>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="schedule">일정등록</button>
+      <button class="tab" data-tab="monitor">모니터링</button>
+      <button class="tab" data-tab="report">일별보고서</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ===== SCHEDULE ===== -->
+    <section class="panel active" id="panel-schedule">
+      <div class="card">
+        <button type="button" class="form-toggle" id="taskFormToggle" aria-expanded="false">
+          <span class="section-title" id="formTitle">새 작업 등록</span>
+          <span class="form-toggle-icon" id="taskFormChevron">▸</span>
+        </button>
+        <form id="taskForm" hidden>
+          <div class="form-grid">
+            <div class="field span-2">
+              <label for="f-title">작업 이름</label>
+              <input id="f-title" type="text" placeholder="예: PLC 로직 1차 설계" required />
+            </div>
+            <div class="field">
+              <label for="f-part">작업 구분</label>
+              <select id="f-part">
+                <option value="plc">PLC</option>
+                <option value="elec">전장</option>
+                <option value="mech">기구</option>
+                <option value="scada">SCADA</option>
+                <option value="dtwin">디지털트윈</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-owner">담당자</label>
+              <input id="f-owner" type="text" placeholder="담당자명" required />
+            </div>
+            <div class="field">
+              <label for="f-start">시작일</label>
+              <input id="f-start" type="date" required />
+            </div>
+            <div class="field">
+              <label for="f-end">종료예정일</label>
+              <input id="f-end" type="date" required />
+            </div>
+            <div class="field span-2">
+              <label for="f-status">작업현황</label>
+              <select id="f-status">
+                <option value="ready">준비중</option>
+                <option value="doing">작업중</option>
+                <option value="done">작업완료</option>
+              </select>
+            </div>
+            <div class="field span-4">
+              <label for="f-desc">작업설명</label>
+              <textarea id="f-desc" placeholder="간단한 코멘트를 남겨주세요"></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn secondary" id="cancelEditBtn" style="display:none;">수정 취소</button>
+            <button type="submit" class="btn" id="taskSubmitBtn">작업 등록</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="section-header">
+          <h2 class="section-title">등록된 일정 보기</h2>
+          <button type="button" class="btn ghost" id="exportTasksBtn">CSV로 내보내기</button>
+        </div>
+        <div class="viewmode-toolbar">
+          <div class="tabs viewmode-row" id="viewModeRow">
+            <button class="tab active" data-view="all">전체보기</button>
+            <button class="tab" data-view="date">날짜별</button>
+            <button class="tab" data-view="part">파트별</button>
+            <button class="tab" data-view="member">멤버별</button>
+            <button class="tab" data-view="status">상태별</button>
+          </div>
+          <div class="tabs density-row" id="densityRow">
+            <button class="tab active" data-density="detail">자세히보기</button>
+            <button class="tab" data-density="compact">간단히보기</button>
+          </div>
+        </div>
+        <div id="viewFilterArea"></div>
+        <div class="result-count" id="resultCount"></div>
+        <div class="task-list" id="taskList"></div>
+      </div>
+    </section>
+
+    <!-- ===== MONITOR ===== -->
+    <section class="panel" id="panel-monitor">
+      <div class="monitor-toolbar">
+        <button type="button" class="btn secondary monitor-home-btn active" id="monitorHomeBtn">HOME</button>
+      </div>
+      <div class="stat-grid" id="statGrid"></div>
+
+      <div class="card" id="monitorHomeView">
+        <h2 class="section-title">전체 진행도</h2>
+        <div class="monitor-layout">
+          <div class="ring-wrap">
+            <div class="ring" id="overallRing" style="--pct:0">
+              <div class="ring-value" id="overallRingValue">0%</div>
+            </div>
+            <div class="ring-caption">전체 작업 완료율</div>
+          </div>
+          <div class="part-bars" id="partBars"></div>
+        </div>
+      </div>
+
+      <div class="card" id="monitorListView" style="display:none;">
+        <h2 class="section-title" id="monitorListTitle"></h2>
+        <div class="task-table-wrap">
+          <table class="task-table">
+            <thead>
+              <tr>
+                <th>작업 이름</th>
+                <th>구분</th>
+                <th>담당자</th>
+                <th>기간</th>
+                <th>현황</th>
+                <th>D-day</th>
+                <th>코멘트</th>
+              </tr>
+            </thead>
+            <tbody id="monitorTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== REPORT ===== -->
+    <section class="panel" id="panel-report">
+      <div class="card">
+        <h2 class="section-title">날짜 선택</h2>
+        <div class="date-strip" id="dateStrip"></div>
+        <div class="report-header">
+          <h3 id="reportDateTitle"></h3>
+          <div class="report-header-actions">
+            <button type="button" class="btn ghost" id="exportPostsBtn">전체 CSV로 내보내기</button>
+            <button class="btn secondary" id="newPostBtn">새 글 작성</button>
+          </div>
+        </div>
+        <form class="post-form" id="postForm" style="display:none;">
+          <div class="form-grid">
+            <div class="field span-2">
+              <label for="p-author">작성자</label>
+              <input id="p-author" type="text" placeholder="이름" required />
+            </div>
+            <div class="field span-2">
+              <label for="p-title">제목</label>
+              <input id="p-title" type="text" placeholder="오늘의 작업 요약" required />
+            </div>
+          </div>
+          <div class="field">
+            <label for="p-content">내용</label>
+            <textarea id="p-content" placeholder="작업 내용을 기록하세요" required style="min-height:90px;"></textarea>
+          </div>
+          <div class="form-grid">
+            <div class="field span-2">
+              <label for="p-file">첨부파일</label>
+              <input id="p-file" type="file" />
+              <div class="existing-attach-note" id="existingAttachNote"></div>
+            </div>
+            <div class="field span-2">
+              <label for="p-link">구글 드라이브 링크 (선택)</label>
+              <input id="p-link" type="text" placeholder="https://drive.google.com/..." />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn secondary" id="cancelPostBtn">취소</button>
+            <button type="submit" class="btn" id="postSubmitBtn">게시</button>
+          </div>
+        </form>
+        <div id="postList" style="margin-top:16px;"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="notice">
+    이 사이트는 Supabase 데이터베이스를 사용합니다 — 팀원 누구나 같은 데이터를 보고 함께 수정할 수 있습니다.
+  </footer>
+</div>
+
+<div id="toast"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

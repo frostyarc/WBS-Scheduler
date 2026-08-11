@@ -1,0 +1,13 @@
+# 비밀값 - 절대 커밋하지 않음
+.env
+.env.*
+*.local
+!.env.example
+
+# service_role, 개인 키 등을 실수로 저장했을 경우를 대비
+*service_role*
+*secret*
+
+# OS / 에디터 부산물
+.DS_Store
+Thumbs.db
