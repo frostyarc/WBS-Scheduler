@@ -4,6 +4,7 @@ import { PARTS, PART_ORDER, STATUS, escapeHtml, ddayInfo, showToast, toISO, toda
 let tasks = [];
 let viewMode = "all";
 let viewValue = "all";
+let density = "detail";
 let editingTaskId = null;
 
 const els = {};
@@ -40,7 +41,8 @@ export async function init(){
     btn.addEventListener("click", () => {
       els.densityRow.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      els.taskList.classList.toggle("compact", btn.dataset.density === "compact");
+      density = btn.dataset.density;
+      render();
     });
   });
 
@@ -213,73 +215,92 @@ function getFilteredTasks(){
   return tasks;
 }
 
+function ddDotColor(dd){
+  if (!dd) return "";
+  if (dd.tone === "critical") return "var(--status-critical)";
+  if (dd.tone === "warning") return "var(--status-warning)";
+  return "var(--text-muted)";
+}
+
+function taskRowHTML(t){
+  const part = PARTS[t.part];
+  const st = STATUS[t.status];
+  const dd = ddayInfo(t);
+  return (
+    '<div class="task-row" data-id="' + t.id + '">' +
+      '<div class="task-main">' +
+        '<div class="task-line task-line-part">' +
+          '<span class="task-part"><span class="dot" style="background:' + part.color + '"></span>' + part.label + "</span>" +
+          '<span class="task-dates">' + t.start_date + " → " + t.end_date + "</span>" +
+        "</div>" +
+        '<div class="task-line task-line-title">' +
+          '<p class="task-title">' + escapeHtml(t.title) + "</p>" +
+          '<span class="task-owner">담당 ' + escapeHtml(t.owner) + "</span>" +
+        "</div>" +
+        (t.description ? '<p class="task-desc">' + escapeHtml(t.description) + "</p>" : "") +
+      "</div>" +
+      '<div class="task-side">' +
+        '<div class="task-status-row">' +
+          '<span class="pill"><span class="dot" style="background:' + st.color + '"></span>' + st.label + "</span>" +
+          (dd ? '<span class="dday"><span class="dot" style="background:' + ddDotColor(dd) + '"></span>' + dd.label + "</span>" : "") +
+        "</div>" +
+        '<div class="task-controls">' +
+          '<button type="button" class="btn ghost" data-action="edit">수정</button>' +
+          '<button type="button" class="btn danger" data-action="delete">삭제</button>' +
+        "</div>" +
+      "</div>" +
+    "</div>"
+  );
+}
+
+function taskCardHTML(t){
+  const part = PARTS[t.part];
+  const st = STATUS[t.status];
+  const dd = ddayInfo(t);
+  return (
+    '<div class="task-card" data-id="' + t.id + '">' +
+      '<div class="task-card-row">' +
+        '<span class="task-part"><span class="dot" style="background:' + part.color + '"></span>' + part.label + "</span>" +
+        (dd ? '<span class="dday"><span class="dot" style="background:' + ddDotColor(dd) + '"></span>' + dd.label + "</span>" : "") +
+      "</div>" +
+      '<p class="task-card-title" title="' + escapeHtml(t.title) + '">' + escapeHtml(t.title) + "</p>" +
+      '<div class="task-card-line task-card-date">' + t.start_date + " → " + t.end_date + "</div>" +
+      '<div class="task-card-line">담당 ' + escapeHtml(t.owner) + "</div>" +
+      '<div class="task-card-footer">' +
+        '<span class="pill"><span class="dot" style="background:' + st.color + '"></span>' + st.label + "</span>" +
+        '<div class="task-card-actions">' +
+          '<button type="button" class="btn ghost" data-action="edit">수정</button>' +
+          '<button type="button" class="btn danger" data-action="delete">삭제</button>' +
+        "</div>" +
+      "</div>" +
+    "</div>"
+  );
+}
+
 function render(){
   renderViewFilterArea();
   const filtered = getFilteredTasks();
   els.resultCount.textContent = "총 " + filtered.length + "건의 작업";
+  els.taskList.classList.toggle("compact", density === "compact");
 
   if (filtered.length === 0){
     els.taskList.innerHTML = '<div class="empty">조건에 맞는 작업이 없습니다.</div>';
     return;
   }
 
-  els.taskList.innerHTML = filtered.map((t) => {
-    const part = PARTS[t.part];
-    const st = STATUS[t.status];
-    const dd = ddayInfo(t);
-    const ddDot = dd ? (dd.tone === "critical" ? "var(--status-critical)" : dd.tone === "warning" ? "var(--status-warning)" : "var(--text-muted)") : "";
-    return (
-      '<div class="task-row" data-id="' + t.id + '">' +
-        '<div class="task-main">' +
-          '<div class="task-line task-line-part">' +
-            '<span class="task-part"><span class="dot" style="background:' + part.color + '"></span>' + part.label + "</span>" +
-            '<span class="task-dates">' + t.start_date + " → " + t.end_date + "</span>" +
-          "</div>" +
-          '<div class="task-line task-line-title">' +
-            '<p class="task-title">' + escapeHtml(t.title) + "</p>" +
-            '<span class="task-owner">담당 ' + escapeHtml(t.owner) + "</span>" +
-          "</div>" +
-          (t.description ? '<p class="task-desc">' + escapeHtml(t.description) + "</p>" : "") +
-        "</div>" +
-        '<div class="task-side">' +
-          '<div class="task-status-row">' +
-            '<span class="pill"><span class="dot" style="background:' + st.color + '"></span>' + st.label + "</span>" +
-            (dd ? '<span class="dday"><span class="dot" style="background:' + ddDot + '"></span>' + dd.label + "</span>" : "") +
-          "</div>" +
-          '<div class="task-controls">' +
-            '<select data-action="status">' +
-              Object.keys(STATUS).map((k) => '<option value="' + k + '"' + (k === t.status ? " selected" : "") + ">" + STATUS[k].label + "</option>").join("") +
-            "</select>" +
-            '<button type="button" class="btn ghost" data-action="edit">수정</button>' +
-            '<button type="button" class="btn danger" data-action="delete">삭제</button>' +
-          "</div>" +
-        "</div>" +
-      "</div>"
-    );
-  }).join("");
+  const buildHTML = density === "compact" ? taskCardHTML : taskRowHTML;
+  els.taskList.innerHTML = filtered.map(buildHTML).join("");
 
-  els.taskList.querySelectorAll('[data-action="status"]').forEach((sel) => {
-    sel.addEventListener("change", async () => {
-      const id = sel.closest(".task-row").dataset.id;
-      try {
-        await updateTask(id, { status: sel.value });
-        showToast("상태를 변경했습니다");
-        await refresh();
-      } catch (err){
-        showToast("변경 실패: " + err.message, true);
-      }
-    });
-  });
   els.taskList.querySelectorAll('[data-action="edit"]').forEach((btn) => {
     btn.addEventListener("click", () => {
-      const id = btn.closest(".task-row").dataset.id;
+      const id = btn.closest("[data-id]").dataset.id;
       const t = tasks.find((x) => x.id === id);
       if (t) startEdit(t);
     });
   });
   els.taskList.querySelectorAll('[data-action="delete"]').forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const id = btn.closest(".task-row").dataset.id;
+      const id = btn.closest("[data-id]").dataset.id;
       if (!confirm("이 작업을 삭제할까요?")) return;
       try {
         await deleteTask(id);
