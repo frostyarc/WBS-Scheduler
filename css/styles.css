@@ -447,46 +447,45 @@ body.admin-wide-mode #adminGanttView .card{padding:16px 14px;}
   background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;
 }
 
-/* ---------- 관리자모드: 간트차트 ---------- */
+/* ---------- 관리자모드: 간트차트 ----------
+   position:sticky로 왼쪽 라벨을 고정하는 방식이 스크롤 시 계속 깨져서(브라우저의
+   sticky+table 처리 한계), 아예 라벨 영역과 타임라인 영역을 서로 다른 DOM/스크롤
+   컨테이너로 완전히 분리했다. 왼쪽(.gantt-frozen)은 가로 스크롤이 원천적으로 없고,
+   오른쪽(.gantt-scroll)만 가로로 스크롤되며, 세로 스크롤만 JS로 두 영역을 동기화한다.
+   구조적으로 두 영역이 겹칠 수가 없다. */
 .gantt-help{font-size:12.5px;color:var(--text-muted);margin:-6px 0 14px;}
-.gantt-wrap{overflow:auto;max-height:78vh;border:1px solid var(--border);border-radius:9px;}
-.gantt-table{border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed;}
+.gantt-split{display:flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;max-height:78vh;}
+.gantt-frozen{flex:none;width:384px;overflow-y:auto;overflow-x:hidden;border-right:1px solid var(--border);background:var(--surface);}
+.gantt-scroll{flex:1;overflow:auto;}
+.gantt-scroll-inner{display:flex;flex-direction:column;}
 
-/* 라벨 5열(WBS/대분류/소분류/작업명/담당자) - 각각 sticky left로 왼쪽에 고정, 겹치지 않게 누적 오프셋 계산 */
-.gantt-col-wbs{width:52px;}
-.gantt-col-cat{width:74px;}
-.gantt-col-part{width:64px;}
-.gantt-col-title{width:120px;}
-.gantt-col-owner{width:74px;}
-
-.gantt-col-header, .gantt-cell{
-  position:sticky;z-index:2;background:var(--surface);
-  border-bottom:1px solid var(--border);padding:3px 6px;text-align:left;vertical-align:middle;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10.5px;
+.gantt-row{display:flex;align-items:stretch;height:30px;box-sizing:border-box;}
+.gantt-frozen-header, .gantt-scroll-header{
+  position:sticky;top:0;z-index:1;height:26px;background:var(--surface);
+  border-bottom:1px solid var(--border);display:flex;align-items:stretch;
 }
-.gantt-col-header{z-index:4;top:0;color:var(--text-muted);font-weight:700;}
-.gantt-col-wbs{left:0;}
-.gantt-col-cat{left:52px;}
-.gantt-col-part{left:126px;}
-.gantt-col-title{left:190px;}
-.gantt-col-owner{left:310px;border-right:1px solid var(--border);}
-.gantt-cell.gantt-col-wbs{font-family:var(--font-mono);color:var(--text-muted);border-left:3px solid var(--cat-color, transparent);}
-.gantt-cell.gantt-col-cat{font-weight:600;color:var(--text-secondary);}
-.gantt-cell.gantt-col-part{color:var(--text-secondary);}
-.gantt-cell.gantt-col-part .dot{width:6px;height:6px;border-radius:50%;flex:none;display:inline-block;margin-right:4px;}
-.gantt-cell.gantt-col-title{font-weight:700;color:var(--text-primary);}
-.gantt-cell.gantt-col-owner{font-weight:600;color:var(--text-primary);}
+.gantt-frozen-body .gantt-row{border-bottom:1px solid var(--border);background:color-mix(in srgb, var(--cat-color, transparent) 7%, var(--surface));}
+.gantt-fcol, .gantt-hcol{
+  flex:none;padding:0 6px;display:flex;align-items:center;font-size:10.5px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.gantt-hcol{color:var(--text-muted);font-weight:700;}
+.gantt-fcol-wbs, .gantt-hcol-wbs{width:52px;font-family:var(--font-mono);color:var(--text-muted);}
+.gantt-fcol-wbs{border-left:3px solid var(--cat-color, transparent);}
+.gantt-fcol-cat, .gantt-hcol-cat{width:74px;font-weight:600;color:var(--text-secondary);}
+.gantt-fcol-part, .gantt-hcol-part{width:64px;color:var(--text-secondary);}
+.gantt-fcol-part .dot{width:6px;height:6px;border-radius:50%;flex:none;display:inline-block;margin-right:4px;}
+.gantt-fcol-title, .gantt-hcol-title{width:120px;font-weight:700;color:var(--text-primary);}
+.gantt-fcol-owner, .gantt-hcol-owner{width:74px;font-weight:600;color:var(--text-primary);}
 
 .gantt-day-header{
-  position:sticky;top:0;z-index:1;background:var(--surface);border-bottom:1px solid var(--border);
-  font-family:var(--font-mono);font-size:10px;color:var(--text-muted);font-weight:600;
-  padding:4px 0;text-align:center;white-space:nowrap;
+  flex:none;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);font-weight:600;
+  display:flex;align-items:center;justify-content:center;white-space:nowrap;border-right:1px solid var(--border);
 }
 .gantt-day-header.today{background:var(--accent);color:#fff;}
-.gantt-timeline-cell{padding:0;position:relative;border-bottom:1px solid var(--border);overflow:hidden;}
-.gantt-bar-track{position:relative;height:22px;overflow:hidden;}
+.gantt-scroll-body .gantt-row{position:relative;border-bottom:1px solid var(--border);overflow:hidden;}
 .gantt-bar{
-  position:absolute;top:5px;height:12px;border-radius:3px;display:flex;align-items:center;
+  position:absolute;top:9px;height:12px;border-radius:3px;display:flex;align-items:center;
   padding:0 6px;cursor:grab;box-shadow:0 1px 3px rgba(0,0,0,0.15);user-select:none;touch-action:none;
 }
 .gantt-bar.dragging{cursor:grabbing;opacity:0.9;}

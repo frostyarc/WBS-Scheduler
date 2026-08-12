@@ -250,12 +250,17 @@
         <div class="card">
           <h2 class="section-title">간트차트</h2>
           <p class="gantt-help">막대 가운데를 드래그하면 일정 전체가 이동하고, 양쪽 끝을 드래그하면 시작일·종료일만 늘어나거나 줄어듭니다. 그냥 클릭(드래그 없이)하면 상태가 준비중→작업중→작업완료 순으로 바뀝니다.</p>
-          <div class="gantt-wrap">
-            <table class="gantt-table" id="ganttTable">
-              <colgroup id="ganttColgroup"></colgroup>
-              <thead><tr id="ganttHeaderRow"></tr></thead>
-              <tbody id="ganttBody"></tbody>
-            </table>
+          <div class="gantt-split">
+            <div class="gantt-frozen" id="ganttFrozen">
+              <div class="gantt-frozen-header" id="ganttFrozenHeader"></div>
+              <div class="gantt-frozen-body" id="ganttFrozenBody"></div>
+            </div>
+            <div class="gantt-scroll" id="ganttScroll">
+              <div class="gantt-scroll-inner" id="ganttScrollInner">
+                <div class="gantt-scroll-header" id="ganttScrollHeader"></div>
+                <div class="gantt-scroll-body" id="ganttScrollBody"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

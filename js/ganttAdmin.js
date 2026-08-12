@@ -14,24 +14,45 @@ let wbsItems = [];
 let rangeStart = null;
 let rangeDays = 0;
 let drag = null;
+let syncingScroll = false;
 
 const els = {};
 
 export function init(){
-  els.colgroup = document.getElementById("ganttColgroup");
-  els.headerRow = document.getElementById("ganttHeaderRow");
-  els.body = document.getElementById("ganttBody");
+  els.frozen = document.getElementById("ganttFrozen");
+  els.frozenHeader = document.getElementById("ganttFrozenHeader");
+  els.frozenBody = document.getElementById("ganttFrozenBody");
+  els.scroll = document.getElementById("ganttScroll");
+  els.scrollInner = document.getElementById("ganttScrollInner");
+  els.scrollHeader = document.getElementById("ganttScrollHeader");
+  els.scrollBody = document.getElementById("ganttScrollBody");
+
+  // 라벨(왼쪽)과 타임라인(오른쪽)이 완전히 분리된 두 스크롤 컨테이너라서, 세로 스크롤만
+  // 서로 맞춰준다 (가로 스크롤은 오른쪽에만 있어서 동기화할 필요가 없다).
+  els.frozen.addEventListener("scroll", () => {
+    if (syncingScroll) return;
+    syncingScroll = true;
+    els.scroll.scrollTop = els.frozen.scrollTop;
+    syncingScroll = false;
+  });
+  els.scroll.addEventListener("scroll", () => {
+    if (syncingScroll) return;
+    syncingScroll = true;
+    els.frozen.scrollTop = els.scroll.scrollTop;
+    syncingScroll = false;
+  });
 
   document.addEventListener("pointermove", onPointerMove);
   document.addEventListener("pointerup", onPointerUp);
 }
 
 export async function refresh(){
-  els.body.innerHTML = '<tr><td class="empty">불러오는 중...</td></tr>';
+  els.frozenBody.innerHTML = "";
+  els.scrollBody.innerHTML = '<div class="empty">불러오는 중...</div>';
   try {
     [categories, wbsItems] = await Promise.all([fetchCategories(), fetchWbsItems()]);
   } catch (err){
-    els.body.innerHTML = '<tr><td class="empty">불러오기 실패: ' + escapeHtml(err.message) + "</td></tr>";
+    els.scrollBody.innerHTML = '<div class="empty">불러오기 실패: ' + escapeHtml(err.message) + "</div>";
     return;
   }
   render();
@@ -61,34 +82,34 @@ function dayOffset(dateISO){
 
 function render(){
   if (wbsItems.length === 0){
-    els.colgroup.innerHTML = "";
-    els.headerRow.innerHTML = "";
-    els.body.innerHTML = '<tr><td class="empty">WBS 항목이 없습니다. WBS 디테일에서 먼저 항목을 추가해주세요.</td></tr>';
+    els.frozenHeader.innerHTML = "";
+    els.frozenBody.innerHTML = "";
+    els.scrollHeader.innerHTML = "";
+    els.scrollBody.innerHTML = '<div class="empty">WBS 항목이 없습니다. WBS 디테일에서 먼저 항목을 추가해주세요.</div>';
     return;
   }
   computeRange();
   const catIndexMap = new Map(categories.map((c, i) => [c.id, i]));
   const todayIso = toISO(today());
+  const timelineWidth = rangeDays * DAY_WIDTH;
 
-  els.colgroup.innerHTML =
-    '<col class="gantt-col-wbs" /><col class="gantt-col-cat" /><col class="gantt-col-part" /><col class="gantt-col-title" /><col class="gantt-col-owner" />' +
-    Array.from({ length: rangeDays }).map(() => '<col style="width:' + DAY_WIDTH + 'px" />').join("");
+  els.frozenHeader.innerHTML =
+    '<div class="gantt-hcol gantt-hcol-wbs">WBS</div>' +
+    '<div class="gantt-hcol gantt-hcol-cat">대분류</div>' +
+    '<div class="gantt-hcol gantt-hcol-part">소분류</div>' +
+    '<div class="gantt-hcol gantt-hcol-title">작업명</div>' +
+    '<div class="gantt-hcol gantt-hcol-owner">담당자</div>';
 
+  els.scrollInner.style.width = timelineWidth + "px";
   const headerCells = [];
   for (let i = 0; i < rangeDays; i++){
     const d = addDays(rangeStart, i);
     const iso = toISO(d);
     headerCells.push(
-      '<th class="gantt-day-header' + (iso === todayIso ? " today" : "") + '">' + (d.getMonth() + 1) + "/" + d.getDate() + "</th>"
+      '<div class="gantt-day-header' + (iso === todayIso ? " today" : "") + '" style="width:' + DAY_WIDTH + 'px">' + (d.getMonth() + 1) + "/" + d.getDate() + "</div>"
     );
   }
-  els.headerRow.innerHTML =
-    '<th class="gantt-col-header gantt-col-wbs">WBS</th>' +
-    '<th class="gantt-col-header gantt-col-cat">대분류</th>' +
-    '<th class="gantt-col-header gantt-col-part">소분류</th>' +
-    '<th class="gantt-col-header gantt-col-title">작업명</th>' +
-    '<th class="gantt-col-header gantt-col-owner">담당자</th>' +
-    headerCells.join("");
+  els.scrollHeader.innerHTML = headerCells.join("");
 
   const sorted = [...wbsItems].sort((a, b) => {
     const ai = a.category_id && catIndexMap.has(a.category_id) ? catIndexMap.get(a.category_id) : 999;
@@ -97,37 +118,41 @@ function render(){
     return (a.sort_order || 0) - (b.sort_order || 0);
   });
 
-  els.body.innerHTML = sorted.map((w) => {
+  els.frozenBody.innerHTML = sorted.map((w) => {
     const t = w.task;
     const part = PARTS[t.part];
     const cat = w.category_id ? categories.find((c) => c.id === w.category_id) : null;
     const catColor = w.category_id && catIndexMap.has(w.category_id) ? CATEGORY_COLORS[catIndexMap.get(w.category_id) % 8] : "var(--border)";
+    return (
+      '<div class="gantt-row" data-id="' + t.id + '" style="--cat-color:' + catColor + '">' +
+        '<div class="gantt-fcol gantt-fcol-wbs">' + escapeHtml(w.wbs_code || "-") + "</div>" +
+        '<div class="gantt-fcol gantt-fcol-cat">' + (cat ? escapeHtml(cat.name) : "-") + "</div>" +
+        '<div class="gantt-fcol gantt-fcol-part"><span class="dot" style="background:' + part.color + '"></span>' + part.label + "</div>" +
+        '<div class="gantt-fcol gantt-fcol-title" title="' + escapeHtml(t.title) + '">' + escapeHtml(t.title) + "</div>" +
+        '<div class="gantt-fcol gantt-fcol-owner">' + escapeHtml(t.owner) + "</div>" +
+      "</div>"
+    );
+  }).join("");
+
+  els.scrollBody.innerHTML = sorted.map((w) => {
+    const t = w.task;
     const left = dayOffset(t.start_date) * DAY_WIDTH;
     const width = (daysBetween(parseISO(t.start_date), parseISO(t.end_date)) + 1) * DAY_WIDTH;
     const st = STATUS[t.status];
     return (
-      '<tr data-id="' + t.id + '" style="--cat-color:' + catColor + '">' +
-        '<td class="gantt-cell gantt-col-wbs">' + escapeHtml(w.wbs_code || "-") + "</td>" +
-        '<td class="gantt-cell gantt-col-cat">' + (cat ? escapeHtml(cat.name) : "-") + "</td>" +
-        '<td class="gantt-cell gantt-col-part"><span class="dot" style="background:' + part.color + '"></span>' + part.label + "</td>" +
-        '<td class="gantt-cell gantt-col-title" title="' + escapeHtml(t.title) + '">' + escapeHtml(t.title) + "</td>" +
-        '<td class="gantt-cell gantt-col-owner">' + escapeHtml(t.owner) + "</td>" +
-        '<td class="gantt-timeline-cell" colspan="' + rangeDays + '">' +
-          '<div class="gantt-bar-track" style="width:' + (rangeDays * DAY_WIDTH) + 'px">' +
-            '<div class="gantt-bar" data-id="' + t.id + '" style="left:' + left + "px;width:" + width + 'px;background:' + st.color + '">' +
-              '<span class="gantt-bar-handle left" data-mode="resize-left"></span>' +
-              '<span class="gantt-bar-handle right" data-mode="resize-right"></span>' +
-            "</div>" +
-          "</div>" +
-        "</td>" +
-      "</tr>"
+      '<div class="gantt-row" data-id="' + t.id + '">' +
+        '<div class="gantt-bar" data-id="' + t.id + '" style="left:' + left + "px;width:" + width + 'px;background:' + st.color + '">' +
+          '<span class="gantt-bar-handle left" data-mode="resize-left"></span>' +
+          '<span class="gantt-bar-handle right" data-mode="resize-right"></span>' +
+        "</div>" +
+      "</div>"
     );
   }).join("");
 
-  els.body.querySelectorAll(".gantt-bar").forEach((bar) => {
+  els.scrollBody.querySelectorAll(".gantt-bar").forEach((bar) => {
     bar.addEventListener("pointerdown", (e) => startDrag(e, bar, "move"));
   });
-  els.body.querySelectorAll(".gantt-bar-handle").forEach((handle) => {
+  els.scrollBody.querySelectorAll(".gantt-bar-handle").forEach((handle) => {
     handle.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
       startDrag(e, handle.closest(".gantt-bar"), handle.dataset.mode);
