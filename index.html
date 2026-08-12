@@ -3,10 +3,21 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>WPS 진행관리</title>
+<title>WBS 진행관리</title>
 <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
+<div class="auth-gate" id="authGate" hidden>
+  <form class="auth-gate-box" id="authGateForm">
+    <div class="brand-mark"></div>
+    <h1>WBS 진행관리</h1>
+    <p>팀 접속 코드를 입력해주세요.</p>
+    <input type="password" id="authGateCode" placeholder="접속 코드" autocomplete="off" />
+    <button type="submit" class="btn" id="authGateSubmit">입장</button>
+    <div class="auth-gate-error" id="authGateError"></div>
+  </form>
+</div>
+
 <div class="app">
   <div class="setup-banner" id="setupBanner" style="display:none;"></div>
 
@@ -14,7 +25,7 @@
     <div class="brand">
       <div class="brand-mark"></div>
       <div>
-        <div class="brand-title">WPS 진행관리</div>
+        <div class="brand-title">WBS 진행관리</div>
         <div class="brand-sub">작업진행시스템</div>
       </div>
     </div>
@@ -69,6 +80,17 @@
                 <option value="done">작업완료</option>
               </select>
             </div>
+            <div class="field span-2">
+              <label>진행률</label>
+              <div class="progress-select" id="f-progress-group">
+                <button type="button" class="chip active" data-progress="0">0%</button>
+                <button type="button" class="chip" data-progress="25">25%</button>
+                <button type="button" class="chip" data-progress="50">50%</button>
+                <button type="button" class="chip" data-progress="75">75%</button>
+                <button type="button" class="chip" data-progress="100">100%</button>
+              </div>
+              <input type="hidden" id="f-progress" value="0" />
+            </div>
             <div class="field span-4">
               <label for="f-desc">작업설명</label>
               <textarea id="f-desc" placeholder="간단한 코멘트를 남겨주세요"></textarea>
@@ -109,6 +131,18 @@
     <section class="panel" id="panel-monitor">
       <div class="monitor-toolbar">
         <button type="button" class="btn secondary monitor-home-btn active" id="monitorHomeBtn">HOME</button>
+        <button type="button" class="btn ghost" id="adminWbsBtn" hidden>WBS 디테일</button>
+        <button type="button" class="btn ghost" id="adminGanttBtn" hidden>간트차트</button>
+        <div class="admin-toggle-wrap">
+          <button type="button" class="btn ghost" id="adminModeBtn">관리자모드</button>
+          <div class="admin-login-popover" id="adminLoginPopover" hidden>
+            <form id="adminLoginForm">
+              <input type="password" id="adminCodeInput" placeholder="관리자 코드" autocomplete="off" />
+              <button type="submit" class="btn">확인</button>
+            </form>
+            <div class="admin-login-error" id="adminLoginError"></div>
+          </div>
+        </div>
       </div>
       <div class="stat-grid" id="statGrid"></div>
 
@@ -136,6 +170,7 @@
                 <th>담당자</th>
                 <th>기간</th>
                 <th>현황</th>
+                <th>진행률</th>
                 <th>D-day</th>
                 <th>코멘트</th>
               </tr>
@@ -144,6 +179,89 @@
           </table>
         </div>
       </div>
+
+      <!-- ===== 관리자모드: WBS 디테일 ===== -->
+      <div id="adminWbsView" style="display:none;">
+        <div class="card">
+          <button type="button" class="form-toggle" id="wbsCategoryToggle" aria-expanded="false">
+            <span class="section-title">대분류 관리</span>
+            <span class="form-toggle-icon" id="wbsCategoryChevron">▸</span>
+          </button>
+          <div id="wbsCategoryBody" hidden>
+            <div class="wbs-category-manager" id="wbsCategoryManager"></div>
+            <form class="wbs-category-add-form" id="wbsCategoryAddForm">
+              <input type="text" id="wbsCategoryNameInput" placeholder="새 대분류 이름 (예: 프로젝트 기본설계)" required />
+              <button type="submit" class="btn secondary">추가</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <button type="button" class="form-toggle" id="wbsAddToggle" aria-expanded="false">
+            <span class="section-title">새 WBS 항목 추가</span>
+            <span class="form-toggle-icon" id="wbsAddChevron">▸</span>
+          </button>
+          <div id="wbsAddForm" hidden>
+            <div class="tabs" id="wbsAddModeRow">
+              <button type="button" class="tab active" data-add-mode="existing">기존 작업에서 추가</button>
+              <button type="button" class="tab" data-add-mode="new">새 작업 생성</button>
+            </div>
+            <div id="wbsAddFields"></div>
+            <div class="form-actions">
+              <button type="button" class="btn" id="wbsAddSubmit">추가</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-header">
+            <h2 class="section-title">WBS 디테일</h2>
+            <button type="button" class="btn ghost" id="wbsExportBtn">CSV로 내보내기</button>
+          </div>
+          <div class="wbs-bulk-bar" id="wbsBulkBar" hidden></div>
+          <div class="task-table-wrap">
+            <table class="task-table wbs-table" id="wbsTable">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="wbsSelectAll" /></th>
+                  <th>WBS</th>
+                  <th>대분류</th>
+                  <th>소분류</th>
+                  <th>작업명</th>
+                  <th>담당자</th>
+                  <th>부/지원</th>
+                  <th>선행작업</th>
+                  <th>시작일</th>
+                  <th>종료일</th>
+                  <th>기간</th>
+                  <th>상태</th>
+                  <th>진행률</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="wbsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 관리자모드: 간트차트 ===== -->
+      <div id="adminGanttView" style="display:none;">
+        <div class="card">
+          <h2 class="section-title">간트차트</h2>
+          <p class="gantt-help">막대 가운데를 드래그하면 일정 전체가 이동하고, 양쪽 끝을 드래그하면 시작일·종료일만 늘어나거나 줄어듭니다. 그냥 클릭(드래그 없이)하면 상태가 준비중→작업중→작업완료 순으로 바뀝니다.</p>
+          <div class="gantt-wrap">
+            <table class="gantt-table" id="ganttTable">
+              <colgroup id="ganttColgroup"></colgroup>
+              <thead><tr id="ganttHeaderRow"></tr></thead>
+              <tbody id="ganttBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 관리자모드: WBS 상세 패널 (완료조건/리스크이슈/지원요청) ===== -->
+      <div class="wbs-detail-modal" id="wbsDetailModal" hidden></div>
     </section>
 
     <!-- ===== REPORT ===== -->

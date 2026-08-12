@@ -24,6 +24,37 @@ export function parseISO(s){ const p = s.split("-").map(Number); return new Date
 export function daysBetween(a, b){ return Math.round((b - a) / 86400000); }
 export function daysInMonth(year, month1based){ return new Date(year, month1based, 0).getDate(); }
 
+export const PROGRESS_STEPS = [0, 25, 50, 75, 100];
+
+// 시작일~종료일을 포함해서 며칠짜리 작업인지 (8/11~8/12 => 2일)
+export function taskDuration(startISO, endISO){
+  if (!startISO || !endISO) return null;
+  return daysBetween(parseISO(startISO), parseISO(endISO)) + 1;
+}
+
+// 시작일/종료일/기간을 어디서든 같은 모양으로 보여주기 위한 공용 렌더러.
+export function dateRangeHTML(startISO, endISO){
+  const dur = taskDuration(startISO, endISO);
+  return (
+    '<div class="date-range">' +
+      '<span class="date-range-seg"><b>시작</b>' + startISO + "</span>" +
+      '<span class="date-range-seg"><b>종료</b>' + endISO + "</span>" +
+      (dur !== null ? '<span class="date-range-seg date-range-duration">' + dur + "일</span>" : "") +
+    "</div>"
+  );
+}
+
+// 진행률(0/25/50/75/100)을 어디서든 같은 모양으로 보여주기 위한 공용 렌더러.
+export function progressBarHTML(progress){
+  const pct = Number(progress) || 0;
+  return (
+    '<div class="progress-mini">' +
+      '<div class="progress-mini-track"><div class="progress-mini-fill" style="width:' + pct + '%"></div></div>' +
+      '<span class="progress-mini-label">' + pct + "%</span>" +
+    "</div>"
+  );
+}
+
 export function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }

@@ -1,4 +1,5 @@
 import { isConfigured } from "./supabaseClient.js";
+import { init as initAuthGate } from "./authGate.js";
 import * as schedule from "./schedule.js";
 import * as monitor from "./monitor.js";
 import * as report from "./report.js";
@@ -21,10 +22,18 @@ function wireTabs(){
       panels.forEach((p) => p.classList.remove("active"));
       tab.classList.add("active");
       document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+      if (tab.dataset.tab === "schedule") await schedule.refresh();
       if (tab.dataset.tab === "monitor") await monitor.refresh();
       if (tab.dataset.tab === "report") await report.refresh();
     });
   });
+}
+
+async function startApp(isAdmin){
+  wireTabs();
+  monitor.init(isAdmin);
+  report.init();
+  await schedule.init();
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -32,8 +41,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     showSetupBanner();
     return;
   }
-  wireTabs();
-  monitor.init();
-  report.init();
-  await schedule.init();
+  await initAuthGate(startApp);
 });

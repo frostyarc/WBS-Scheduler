@@ -1,5 +1,5 @@
 import { fetchTasks, createTask, updateTask, deleteTask } from "./data.js";
-import { PARTS, PART_ORDER, STATUS, escapeHtml, ddayInfo, showToast, toISO, today, addDays, parseISO, downloadCSV } from "./util.js";
+import { PARTS, PART_ORDER, STATUS, escapeHtml, ddayInfo, showToast, toISO, today, addDays, parseISO, downloadCSV, dateRangeHTML, progressBarHTML } from "./util.js";
 
 let tasks = [];
 let viewMode = "all";
@@ -23,6 +23,12 @@ export async function init(){
   els.resultCount = document.getElementById("resultCount");
   els.taskList = document.getElementById("taskList");
   els.exportBtn = document.getElementById("exportTasksBtn");
+  els.progressGroup = document.getElementById("f-progress-group");
+  els.progressInput = document.getElementById("f-progress");
+
+  els.progressGroup.querySelectorAll("[data-progress]").forEach((btn) => {
+    btn.addEventListener("click", () => setProgressValue(Number(btn.dataset.progress)));
+  });
 
   els.form.addEventListener("submit", onSubmit);
   els.cancelEditBtn.addEventListener("click", resetForm);
@@ -49,6 +55,13 @@ export async function init(){
   await refresh();
 }
 
+function setProgressValue(value){
+  els.progressInput.value = value;
+  els.progressGroup.querySelectorAll("[data-progress]").forEach((btn) => {
+    btn.classList.toggle("active", Number(btn.dataset.progress) === value);
+  });
+}
+
 function setFormExpanded(expanded){
   els.form.hidden = !expanded;
   els.formToggle.setAttribute("aria-expanded", String(expanded));
@@ -70,6 +83,7 @@ export async function refresh(){
 function resetForm(){
   els.form.reset();
   document.getElementById("f-status").value = "ready";
+  setProgressValue(0);
   editingTaskId = null;
   els.formTitle.textContent = "새 작업 등록";
   els.submitBtn.textContent = "작업 등록";
@@ -86,6 +100,7 @@ function startEdit(t){
   document.getElementById("f-end").value = t.end_date;
   document.getElementById("f-status").value = t.status;
   document.getElementById("f-desc").value = t.description || "";
+  setProgressValue(t.progress || 0);
   els.formTitle.textContent = "작업 수정";
   els.submitBtn.textContent = "수정 완료";
   els.cancelEditBtn.style.display = "inline-block";
@@ -107,7 +122,8 @@ async function onSubmit(e){
     status: document.getElementById("f-status").value,
     start_date: start,
     end_date: end,
-    description: document.getElementById("f-desc").value.trim()
+    description: document.getElementById("f-desc").value.trim(),
+    progress: Number(els.progressInput.value) || 0
   };
   els.submitBtn.disabled = true;
   try {
@@ -189,12 +205,12 @@ function renderViewFilterArea(){
 }
 
 function exportCSV(){
-  const rows = [["작업이름", "작업구분", "담당자", "작업현황", "시작일", "종료예정일", "D-day", "작업설명"]];
+  const rows = [["작업이름", "작업구분", "담당자", "작업현황", "진행률(%)", "시작일", "종료예정일", "D-day", "작업설명"]];
   getFilteredTasks().forEach((t) => {
     const dd = ddayInfo(t);
-    rows.push([t.title, PARTS[t.part].label, t.owner, STATUS[t.status].label, t.start_date, t.end_date, dd ? dd.label : "", t.description || ""]);
+    rows.push([t.title, PARTS[t.part].label, t.owner, STATUS[t.status].label, t.progress || 0, t.start_date, t.end_date, dd ? dd.label : "", t.description || ""]);
   });
-  downloadCSV("wps_일정_" + toISO(today()) + ".csv", rows);
+  downloadCSV("wbs_일정_" + toISO(today()) + ".csv", rows);
   showToast("CSV 파일을 내려받았습니다");
 }
 
@@ -231,12 +247,12 @@ function taskRowHTML(t){
       '<div class="task-main">' +
         '<div class="task-line task-line-part">' +
           '<span class="task-part"><span class="dot" style="background:' + part.color + '"></span>' + part.label + "</span>" +
-          '<span class="task-dates">' + t.start_date + " → " + t.end_date + "</span>" +
         "</div>" +
         '<div class="task-line task-line-title">' +
           '<p class="task-title">' + escapeHtml(t.title) + "</p>" +
           '<span class="task-owner">담당 ' + escapeHtml(t.owner) + "</span>" +
         "</div>" +
+        dateRangeHTML(t.start_date, t.end_date) +
         (t.description ? '<p class="task-desc">' + escapeHtml(t.description) + "</p>" : "") +
       "</div>" +
       '<div class="task-side">' +
@@ -244,6 +260,7 @@ function taskRowHTML(t){
           '<span class="pill"><span class="dot" style="background:' + st.color + '"></span>' + st.label + "</span>" +
           (dd ? '<span class="dday"><span class="dot" style="background:' + ddDotColor(dd) + '"></span>' + dd.label + "</span>" : "") +
         "</div>" +
+        progressBarHTML(t.progress) +
         '<div class="task-controls">' +
           '<button type="button" class="btn ghost" data-action="edit">수정</button>' +
           '<button type="button" class="btn danger" data-action="delete">삭제</button>' +
@@ -264,8 +281,9 @@ function taskCardHTML(t){
         (dd ? '<span class="dday"><span class="dot" style="background:' + ddDotColor(dd) + '"></span>' + dd.label + "</span>" : "") +
       "</div>" +
       '<p class="task-card-title" title="' + escapeHtml(t.title) + '">' + escapeHtml(t.title) + "</p>" +
-      '<div class="task-card-line task-card-date">' + t.start_date + " → " + t.end_date + "</div>" +
+      dateRangeHTML(t.start_date, t.end_date) +
       '<div class="task-card-line">담당 ' + escapeHtml(t.owner) + "</div>" +
+      progressBarHTML(t.progress) +
       '<div class="task-card-footer">' +
         '<span class="pill"><span class="dot" style="background:' + st.color + '"></span>' + st.label + "</span>" +
         '<div class="task-card-actions">' +

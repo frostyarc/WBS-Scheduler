@@ -1,9 +1,13 @@
 import { fetchTasks } from "./data.js";
-import { PARTS, PART_ORDER, STATUS, escapeHtml, ddayInfo } from "./util.js";
+import { PARTS, PART_ORDER, STATUS, escapeHtml, ddayInfo, dateRangeHTML, progressBarHTML } from "./util.js";
+import { ADMIN_CODE } from "./config.js";
+import * as wbsAdmin from "./wbsAdmin.js";
+import * as ganttAdmin from "./ganttAdmin.js";
 
 const els = {};
 let allTasks = [];
-let view = "home"; // "home" | "total" | "done" | "doing" | "overdue"
+let view = "home"; // "home" | "total" | "done" | "doing" | "overdue" | "wbsAdmin" | "gantt"
+let adminUnlocked = false;
 
 function byDate(key, dir){
   return (a, b) => dir * (a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : 0);
@@ -16,7 +20,8 @@ const VIEWS = {
   overdue: { label: "지연",       filter: (t) => { const dd = ddayInfo(t); return dd && dd.tone === "critical"; }, sort: byDate("end_date", 1), sortNote: "지연 오래된 순" }
 };
 
-export function init(){
+export function init(isAdminInitial){
+  adminUnlocked = !!isAdminInitial;
   els.homeBtn = document.getElementById("monitorHomeBtn");
   els.statGrid = document.getElementById("statGrid");
   els.homeView = document.getElementById("monitorHomeView");
@@ -27,6 +32,19 @@ export function init(){
   els.ringValue = document.getElementById("overallRingValue");
   els.partBars = document.getElementById("partBars");
 
+  els.adminWbsBtn = document.getElementById("adminWbsBtn");
+  els.adminGanttBtn = document.getElementById("adminGanttBtn");
+  els.adminWbsView = document.getElementById("adminWbsView");
+  els.adminGanttView = document.getElementById("adminGanttView");
+  els.adminModeBtn = document.getElementById("adminModeBtn");
+  els.adminLoginPopover = document.getElementById("adminLoginPopover");
+  els.adminLoginForm = document.getElementById("adminLoginForm");
+  els.adminCodeInput = document.getElementById("adminCodeInput");
+  els.adminLoginError = document.getElementById("adminLoginError");
+
+  wbsAdmin.init();
+  ganttAdmin.init();
+
   els.homeBtn.addEventListener("click", () => { view = "home"; render(); });
   els.statGrid.addEventListener("click", (e) => {
     const tile = e.target.closest("[data-view]");
@@ -34,6 +52,58 @@ export function init(){
     view = tile.dataset.view;
     render();
   });
+
+  els.adminWbsBtn.addEventListener("click", async () => {
+    view = "wbsAdmin";
+    render();
+    await wbsAdmin.refresh();
+  });
+  els.adminGanttBtn.addEventListener("click", async () => {
+    view = "gantt";
+    render();
+    await ganttAdmin.refresh();
+  });
+
+  updateAdminButtons();
+  els.adminModeBtn.addEventListener("click", () => {
+    if (adminUnlocked){
+      view = "wbsAdmin";
+      render();
+      wbsAdmin.refresh();
+      return;
+    }
+    els.adminLoginPopover.hidden = !els.adminLoginPopover.hidden;
+    els.adminCodeInput.value = "";
+    els.adminLoginError.textContent = "";
+    if (!els.adminLoginPopover.hidden) els.adminCodeInput.focus();
+  });
+  document.addEventListener("click", (e) => {
+    if (els.adminLoginPopover.hidden) return;
+    const path = e.composedPath();
+    if (!path.includes(els.adminLoginPopover) && !path.includes(els.adminModeBtn)){
+      els.adminLoginPopover.hidden = true;
+    }
+  });
+  els.adminLoginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (els.adminCodeInput.value.trim() !== ADMIN_CODE){
+      els.adminLoginError.textContent = "코드가 올바르지 않습니다.";
+      return;
+    }
+    adminUnlocked = true;
+    els.adminLoginPopover.hidden = true;
+    updateAdminButtons();
+    view = "wbsAdmin";
+    render();
+    await wbsAdmin.refresh();
+  });
+}
+
+function updateAdminButtons(){
+  els.adminWbsBtn.hidden = !adminUnlocked;
+  els.adminGanttBtn.hidden = !adminUnlocked;
+  els.adminModeBtn.textContent = adminUnlocked ? "관리자모드 켜짐" : "관리자모드";
+  els.adminModeBtn.classList.toggle("active", adminUnlocked);
 }
 
 export async function refresh(){
@@ -45,6 +115,8 @@ export async function refresh(){
     return;
   }
   render();
+  if (view === "wbsAdmin") wbsAdmin.refresh();
+  if (view === "gantt") ganttAdmin.refresh();
 }
 
 function render(){
@@ -63,16 +135,19 @@ function render(){
     tile.classList.toggle("active", tile.dataset.view === view);
   });
   els.homeBtn.classList.toggle("active", view === "home");
+  els.adminWbsBtn.classList.toggle("active", view === "wbsAdmin");
+  els.adminGanttBtn.classList.toggle("active", view === "gantt");
 
-  if (view === "home"){
-    els.homeView.style.display = "";
-    els.listView.style.display = "none";
-    renderHome(total, done);
-  } else {
-    els.homeView.style.display = "none";
-    els.listView.style.display = "";
-    renderList();
-  }
+  const isListView = view === "total" || view === "done" || view === "doing" || view === "overdue";
+  document.body.classList.toggle("admin-wide-mode", view === "wbsAdmin" || view === "gantt");
+  els.homeView.style.display = view === "home" ? "" : "none";
+  els.listView.style.display = isListView ? "" : "none";
+  els.adminWbsView.style.display = view === "wbsAdmin" ? "" : "none";
+  els.adminGanttView.style.display = view === "gantt" ? "" : "none";
+  els.statGrid.style.display = (view === "wbsAdmin" || view === "gantt") ? "none" : "";
+
+  if (view === "home") renderHome(total, done);
+  else if (isListView) renderList();
 }
 
 function renderHome(total, done){
@@ -100,7 +175,7 @@ function renderList(){
   els.listTitle.textContent = cfg.label + " (" + rows.length + "건) · " + cfg.sortNote;
 
   if (rows.length === 0){
-    els.tableBody.innerHTML = '<tr><td colspan="7" class="empty">해당하는 작업이 없습니다.</td></tr>';
+    els.tableBody.innerHTML = '<tr><td colspan="8" class="empty">해당하는 작업이 없습니다.</td></tr>';
     return;
   }
 
@@ -113,8 +188,9 @@ function renderList(){
         '<td class="col-title">' + escapeHtml(t.title) + "</td>" +
         '<td class="col-part"><span class="dot" style="background:' + part.color + '"></span>' + part.label + "</td>" +
         '<td class="col-owner">' + escapeHtml(t.owner) + "</td>" +
-        '<td class="col-period">' + t.start_date + " → " + t.end_date + "</td>" +
+        '<td class="col-period">' + dateRangeHTML(t.start_date, t.end_date) + "</td>" +
         "<td>" + st.label + "</td>" +
+        '<td class="col-progress">' + progressBarHTML(t.progress) + "</td>" +
         '<td class="col-dday">' + (dd ? dd.label : "-") + "</td>" +
         "<td>" + (t.description ? escapeHtml(t.description) : "-") + "</td>" +
       "</tr>"

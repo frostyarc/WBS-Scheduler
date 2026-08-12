@@ -141,7 +141,7 @@ function exportCSV(){
   posts.forEach((p) => {
     rows.push([p.post_date, p.title, p.author, p.time, p.content, p.attachment_name || "", p.drive_link || "", p.edited ? "Y" : "N"]);
   });
-  downloadCSV("wps_보고서_" + toISO(today()) + ".csv", rows);
+  downloadCSV("wbs_보고서_" + toISO(today()) + ".csv", rows);
   showToast("CSV 파일을 내려받았습니다");
 }
 
